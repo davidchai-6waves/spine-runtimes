@@ -29,57 +29,45 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#include <spine/spine-cocos2dx.h>
-#include <spine/extension.h>
+package spine.examples {
+import spine.*;
+import spine.atlas.Atlas;
+import spine.attachments.AtlasAttachmentLoader;
+import spine.attachments.AttachmentLoader;
+import spine.starling.SkeletonAnimation;
+import spine.starling.StarlingTextureLoader;
 
-USING_NS_CC;
+import starling.core.Starling;
+import starling.display.Sprite;
 
-GLuint wrap (spAtlasWrap wrap) {
-	return wrap == SP_ATLAS_CLAMPTOEDGE ? GL_CLAMP_TO_EDGE : GL_REPEAT;
+public class VineExample extends Sprite {
+	[Embed(source = "/vine.json", mimeType = "application/octet-stream")]
+	static public const VineJson:Class;
+	
+	[Embed(source = "/vine.atlas", mimeType = "application/octet-stream")]
+	static public const VineAtlas:Class;
+	
+	[Embed(source = "/vine.png")]
+	static public const VineAtlasTexture:Class;
+	
+	private var skeleton:SkeletonAnimation;	
+
+	public function VineExample () {
+		var attachmentLoader:AttachmentLoader;
+		var spineAtlas:Atlas = new Atlas(new VineAtlas(), new StarlingTextureLoader(new VineAtlasTexture()));
+		attachmentLoader = new AtlasAttachmentLoader(spineAtlas);
+
+		var json:SkeletonJson = new SkeletonJson(attachmentLoader);
+		json.scale = 0.5;
+		var skeletonData:SkeletonData = json.readSkeletonData(new VineJson());
+
+		skeleton = new SkeletonAnimation(skeletonData);
+		skeleton.x = 400;
+		skeleton.y = 560;
+		skeleton.state.setAnimationByName(0, "animation", true);
+
+		addChild(skeleton);
+		Starling.juggler.add(skeleton);		
+	}	
 }
-
-GLuint filter (spAtlasFilter filter) {
-	switch (filter) {
-	case SP_ATLAS_NEAREST:
-		return GL_NEAREST;
-	case SP_ATLAS_LINEAR:
-		return GL_LINEAR;
-	case SP_ATLAS_MIPMAP:
-		return GL_LINEAR_MIPMAP_LINEAR;
-	case SP_ATLAS_MIPMAP_NEAREST_NEAREST:
-		return GL_NEAREST_MIPMAP_NEAREST;
-	case SP_ATLAS_MIPMAP_LINEAR_NEAREST:
-		return GL_LINEAR_MIPMAP_NEAREST;
-	case SP_ATLAS_MIPMAP_NEAREST_LINEAR:
-		return GL_NEAREST_MIPMAP_LINEAR;
-	case SP_ATLAS_MIPMAP_LINEAR_LINEAR:
-		return GL_LINEAR_MIPMAP_LINEAR;
-	}
-	return GL_LINEAR;
-}
-
-void _spAtlasPage_createTexture (spAtlasPage* self, const char* path) {
-	Texture2D* texture = Director::getInstance()->getTextureCache()->addImage(path);
-	texture->retain();
-
-	Texture2D::TexParams textureParams = {filter(self->minFilter), filter(self->magFilter), wrap(self->uWrap), wrap(self->vWrap)};
-	texture->setTexParameters(textureParams);
-
-	self->rendererObject = texture;
-	self->width = texture->getPixelsWide();
-	self->height = texture->getPixelsHigh();
-}
-
-void _spAtlasPage_disposeTexture (spAtlasPage* self) {
-	((Texture2D*)self->rendererObject)->release();
-}
-
-char* _spUtil_readFile (const char* path, int* length) {
-	Data data = FileUtils::getInstance()->getDataFromFile(
-			FileUtils::getInstance()->fullPathForFilename(path).c_str());
-    if (data.isNull()) return 0;
-	*length = static_cast<int>(data.getSize());
-	char* bytes = MALLOC(char, *length);
-	memcpy(bytes, data.getBytes(), *length);
-	return bytes;
 }

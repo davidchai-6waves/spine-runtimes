@@ -29,33 +29,78 @@
 -- ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -------------------------------------------------------------------------------
 
-local AttachmentType = require "spine-lua.AttachmentType"
-local RegionAttachment = require "spine-lua.RegionAttachment"
-local MeshAttachment = require "spine-lua.MeshAttachment"
-local BoundingBoxAttachment = require "spine-lua.BoundingBoxAttachment"
-local MeshAttachment = require "spine-lua.MeshAttachment"
-local SkinningMeshAttachment = require "spine-lua.SkinnedMeshAttachment"
+local Atlas = {}
 
-local AttachmentLoader = {}
-function AttachmentLoader.new ()
-	local self = {}
-
-	function self:newRegionAttachment (skin, name, path)
-		return RegionAttachment.new(name)
+function Atlas.parse(atlasPath, atlasBase)
+	local function parseIntTuple4( l )
+		local a,b,c,d = string.match( l , " ? ?%a+: ([+-]?%d+), ?([+-]?%d+), ?([+-]?%d+), ?([+-]?%d+)" )
+		local a,b,c,d = tonumber( a ), tonumber( b ), tonumber( c ), tonumber( d )
+		return a and b and c and d and {a, b, c ,d}
 	end
 
-	function self:newMeshAttachment (skin, name, path)
-		return MeshAttachment.new(name)
+	local function parseIntTuple2( l )
+		local a,b = string.match( l , " ? ?%a+: ([+-]?%d+), ?([+-]?%d+)" )
+		local a,b = tonumber( a ), tonumber( b )
+		return a and b and {a, b}
+	end
+	
+	if not atlasPath then
+		error("Error: " .. atlasPath .. ".atlas" .. " doesn't exist!")
+		return nil
+	end 
+
+	local atlasLines = spine.utils.readFile( atlasPath, atlasBase )
+	if not atlasLines then
+		error("Error: " .. atlasPath .. ".atlas" .. " unable to read!")
+		return nil
 	end
 
-	function self:newSkinningMeshAttachment (skin, name, path)
-		return SkinningMeshAttachment.new(name)
+	local pages = {}
+
+
+	local it = string.gmatch(atlasLines, "(.-)\r?\n")  -- iterate over lines
+	for l in it do
+		if #l == 0 then
+			l = it()
+			if l then
+				local page = { name = l }
+				l = it()
+				page.size = parseIntTuple2( l )
+				if page.size then
+					l = it()
+				end
+				page.format = string.match( l, "%a+: (.+)" )
+				page.filter = {string.match( it(), "%a+: (.+),(.+)" )}
+				page.wrap = string.match( it(), "%a+: (.+)" )
+				page.regions = {}
+				table.insert( pages, page )
+			else 
+				break
+			end
+		else
+			local region = {name = l}
+
+			region.rotate = string.match( it(), "%a+: (.+)" ) == "true"
+			region.xy = parseIntTuple2( it() )
+			region.size = parseIntTuple2( it() )
+			l = it()
+			region.splits = parseIntTuple4(l)
+			if region.splits then
+				l = it()
+				region.pad = parseIntTuple4(l)
+				if region.pad then
+					l = it()
+				end
+			end
+			region.orig = parseIntTuple2( l )
+			region.offset = parseIntTuple2( it() )
+			region.index = tonumber( string.match( it() , "%a+: ([+-]?%d+)" ) )
+
+			table.insert( pages[#pages].regions, region )
+		end
 	end
 
-	function self:newBoundingBoxAttachment (skin, name)
-		return BoundingBoxAttachment.new(name)
-	end
-
-	return self
+	return pages
 end
-return AttachmentLoader
+
+return Atlas
