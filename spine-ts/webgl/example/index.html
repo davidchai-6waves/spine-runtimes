@@ -29,7 +29,7 @@ var skeletonRenderer;
 var debugRenderer;
 var shapes;
 var skeletons = {};
-var activeSkeleton = "stretchyman";
+var activeSkeleton = "raptor";
 
 function init () {
 	// Setup canvas and WebGL context. We pass alpha: false to canvas.getContext() so we don't use premultiplied alpha when
@@ -81,10 +81,10 @@ function init () {
 function load () {
 	// Wait until the AssetManager has loaded all resources, then load the skeletons.
 	if (assetManager.isLoadingComplete()) {
-		skeletons["spineboy"] = loadSkeleton("spineboy", "run", false);
 		skeletons["raptor"] = loadSkeleton("raptor", "walk", false);
+		skeletons["spineboy"] = loadSkeleton("spineboy", "run", false);		
 		skeletons["tank"] = loadSkeleton("tank", "drive", false);
-		skeletons["goblins"] = loadSkeleton("goblins-mesh", "walk", true, "goblin");
+		skeletons["goblins"] = loadSkeleton("goblins-mesh", "walk", false, "goblin");
 		skeletons["vine"] = loadSkeleton("vine", "animation", false);
 		skeletons["stretchyman"] = loadSkeleton("stretchyman", "sneak", false);				
 		setupUI();
@@ -103,8 +103,8 @@ function loadSkeleton (name, initialAnimation, premultipliedAlpha, skin) {
 		return assetManager.get("assets/" + path);		
 	});
 
-	// Create a TextureAtlasAttachmentLoader that resolves region, mesh, boundingbox and path attachments
-	atlasLoader = new spine.TextureAtlasAttachmentLoader(atlas);
+	// Create a AtlasAttachmentLoader that resolves region, mesh, boundingbox and path attachments
+	atlasLoader = new spine.AtlasAttachmentLoader(atlas);
 
 	// Create a SkeletonJson instance for parsing the .json file.
 	var skeletonJson = new spine.SkeletonJson(atlasLoader);

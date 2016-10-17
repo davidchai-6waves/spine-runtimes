@@ -1,10 +1,9 @@
 /******************************************************************************
- * Spine Runtimes Software License
- * Version 2.5
- * 
+ * Spine Runtimes Software License v2.5
+ *
  * Copyright (c) 2013-2016, Esoteric Software
  * All rights reserved.
- * 
+ *
  * You are granted a perpetual, non-exclusive, non-sublicensable, and
  * non-transferable license to use, install, execute, and perform the Spine
  * Runtimes software and derivative works solely for personal or internal
@@ -16,7 +15,7 @@
  * or other intellectual property or proprietary rights notices on or in the
  * Software, including any copy thereof. Redistributions in binary or source
  * form must include this license and terms.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
@@ -108,17 +107,17 @@ module spine {
 
 				for (let ii = 0, nn = events.length; ii < nn; ii++) {
 					let event = events[ii];
-					if (current.listener != null) current.listener.event(i, event);
+					if (current.listener != null && current.listener.event != null) current.listener.event(i, event);
 					for (let iii = 0; iii < listenerCount; iii++)
-						this.listeners[iii].event(i, event);
+						if (this.listeners[iii].event) this.listeners[iii].event(i, event);
 				}
 
 				// Check if completed the animation or a loop iteration.
 				if (loop ? (lastTime % endTime > time % endTime) : (lastTime < endTime && time >= endTime)) {
 					let count = MathUtils.toInt(time / endTime);
-					if (current.listener != null) current.listener.complete(i, count);
+					if (current.listener != null && current.listener.complete) current.listener.complete(i, count);
 					for (let ii = 0, nn = this.listeners.length; ii < nn; ii++)
-						this.listeners[ii].complete(i, count);
+						if (this.listeners[ii].complete) this.listeners[ii].complete(i, count);
 				}
 
 				current.lastTime = current.time;
@@ -136,9 +135,9 @@ module spine {
 			let current = this.tracks[trackIndex];
 			if (current == null) return;
 
-			if (current.listener != null) current.listener.end(trackIndex);
+			if (current.listener != null && current.listener.end != null) current.listener.end(trackIndex);
 			for (let i = 0, n = this.listeners.length; i < n; i++)
-				this.listeners[i].end(trackIndex);
+				if (this.listeners[i].end) this.listeners[i].end(trackIndex);
 
 			this.tracks[trackIndex] = null;
 
@@ -165,9 +164,9 @@ module spine {
 				let previous = current.previous;
 				current.previous = null;
 
-				if (current.listener != null) current.listener.end(index);
+				if (current.listener != null && current.listener.end != null) current.listener.end(index);
 				for (let i = 0, n = this.listeners.length; i < n; i++)
-					this.listeners[i].end(index);
+					if (this.listeners[i].end) this.listeners[i].end(index);
 
 				entry.mixDuration = this.data.getMix(current.animation, entry.animation);
 				if (entry.mixDuration > 0) {
@@ -183,9 +182,9 @@ module spine {
 
 			this.tracks[index] = entry;
 
-			if (entry.listener != null) entry.listener.start(index);
+			if (entry.listener != null && entry.listener.start != null) entry.listener.start(index);
 			for (let i = 0, n = this.listeners.length; i < n; i++)
-				this.listeners[i].start(index);
+				if (this.listeners[i].start) this.listeners[i].start(index);
 		}
 
 		/** @see #setAnimation(int, Animation, boolean) */

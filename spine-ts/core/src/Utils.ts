@@ -1,10 +1,9 @@
 /******************************************************************************
- * Spine Runtimes Software License
- * Version 2.5
- * 
+ * Spine Runtimes Software License v2.5
+ *
  * Copyright (c) 2013-2016, Esoteric Software
  * All rights reserved.
- * 
+ *
  * You are granted a perpetual, non-exclusive, non-sublicensable, and
  * non-transferable license to use, install, execute, and perform the Spine
  * Runtimes software and derivative works solely for personal or internal
@@ -16,7 +15,7 @@
  * or other intellectual property or proprietary rights notices on or in the
  * Software, including any copy thereof. Redistributions in binary or source
  * form must include this license and terms.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
@@ -131,7 +130,7 @@ module spine {
 
 		static cbrt (x: number) {
 			var y = Math.pow(Math.abs(x), 1/3);
-  			return x < 0 ? -y : y;
+			return x < 0 ? -y : y;
 		}
 	}
 
@@ -236,7 +235,7 @@ module spine {
 	}
 
 	export class TimeKeeper {
-		maxDelta = 0.064;		
+		maxDelta = 0.064;
 		framesPerSecond = 0;
 		delta = 0;
 		totalTime = 0;
@@ -252,7 +251,7 @@ module spine {
 			this.totalTime += this.delta;
 			if (this.delta > this.maxDelta) this.delta = this.maxDelta;
 			this.lastTime = now;
-			
+
 			this.frameCount++;
 			if (this.frameTime > 1) {
 				this.framesPerSecond = this.frameCount / this.frameTime;
@@ -260,5 +259,10 @@ module spine {
 				this.frameCount = 0;
 			}
 		}
+	}
+
+	export interface ArrayLike<T> {
+		length: number;
+		[n: number]: T;
 	}
 }

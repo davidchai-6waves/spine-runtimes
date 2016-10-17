@@ -1117,17 +1117,19 @@ var spine;
 				}
 				for (var ii = 0, nn = events.length; ii < nn; ii++) {
 					var event_1 = events[ii];
-					if (current.listener != null)
+					if (current.listener != null && current.listener.event != null)
 						current.listener.event(i, event_1);
 					for (var iii = 0; iii < listenerCount; iii++)
-						this.listeners[iii].event(i, event_1);
+						if (this.listeners[iii].event)
+							this.listeners[iii].event(i, event_1);
 				}
 				if (loop ? (lastTime % endTime > time % endTime) : (lastTime < endTime && time >= endTime)) {
 					var count = spine.MathUtils.toInt(time / endTime);
-					if (current.listener != null)
+					if (current.listener != null && current.listener.complete)
 						current.listener.complete(i, count);
 					for (var ii = 0, nn = this.listeners.length; ii < nn; ii++)
-						this.listeners[ii].complete(i, count);
+						if (this.listeners[ii].complete)
+							this.listeners[ii].complete(i, count);
 				}
 				current.lastTime = current.time;
 			}
@@ -1143,10 +1145,11 @@ var spine;
 			var current = this.tracks[trackIndex];
 			if (current == null)
 				return;
-			if (current.listener != null)
+			if (current.listener != null && current.listener.end != null)
 				current.listener.end(trackIndex);
 			for (var i = 0, n = this.listeners.length; i < n; i++)
-				this.listeners[i].end(trackIndex);
+				if (this.listeners[i].end)
+					this.listeners[i].end(trackIndex);
 			this.tracks[trackIndex] = null;
 			this.freeAll(current);
 		};
@@ -1168,10 +1171,11 @@ var spine;
 			if (current != null) {
 				var previous = current.previous;
 				current.previous = null;
-				if (current.listener != null)
+				if (current.listener != null && current.listener.end != null)
 					current.listener.end(index);
 				for (var i = 0, n = this.listeners.length; i < n; i++)
-					this.listeners[i].end(index);
+					if (this.listeners[i].end)
+						this.listeners[i].end(index);
 				entry.mixDuration = this.data.getMix(current.animation, entry.animation);
 				if (entry.mixDuration > 0) {
 					entry.mixTime = 0;
@@ -1184,10 +1188,11 @@ var spine;
 				}
 			}
 			this.tracks[index] = entry;
-			if (entry.listener != null)
+			if (entry.listener != null && entry.listener.start != null)
 				entry.listener.start(index);
 			for (var i = 0, n = this.listeners.length; i < n; i++)
-				this.listeners[i].start(index);
+				if (this.listeners[i].start)
+					this.listeners[i].start(index);
 		};
 		AnimationState.prototype.setAnimation = function (trackIndex, animationName, loop) {
 			var animation = this.data.skeletonData.findAnimation(animationName);
@@ -1332,6 +1337,40 @@ var spine;
 		return AnimationStateData;
 	}());
 	spine.AnimationStateData = AnimationStateData;
+})(spine || (spine = {}));
+var spine;
+(function (spine) {
+	var AtlasAttachmentLoader = (function () {
+		function AtlasAttachmentLoader(atlas) {
+			this.atlas = atlas;
+		}
+		AtlasAttachmentLoader.prototype.newRegionAttachment = function (skin, name, path) {
+			var region = this.atlas.findRegion(path);
+			if (region == null)
+				throw new Error("Region not found in atlas: " + path + " (region attachment: " + name + ")");
+			region.renderObject = region;
+			var attachment = new spine.RegionAttachment(name);
+			attachment.setRegion(region);
+			return attachment;
+		};
+		AtlasAttachmentLoader.prototype.newMeshAttachment = function (skin, name, path) {
+			var region = this.atlas.findRegion(path);
+			if (region == null)
+				throw new Error("Region not found in atlas: " + path + " (mesh attachment: " + name + ")");
+			region.renderObject = region;
+			var attachment = new spine.MeshAttachment(name);
+			attachment.region = region;
+			return attachment;
+		};
+		AtlasAttachmentLoader.prototype.newBoundingBoxAttachment = function (skin, name) {
+			return new spine.BoundingBoxAttachment(name);
+		};
+		AtlasAttachmentLoader.prototype.newPathAttachment = function (skin, name) {
+			return new spine.PathAttachment(name);
+		};
+		return AtlasAttachmentLoader;
+	}());
+	spine.AtlasAttachmentLoader = AtlasAttachmentLoader;
 })(spine || (spine = {}));
 var spine;
 (function (spine) {
@@ -2519,9 +2558,13 @@ var spine;
 				this.sortBone(slotBone);
 			else {
 				var bones = this.bones;
-				for (var i = 0; i < pathBones.length; i++) {
-					var boneIndex = pathBones[i];
-					this.sortBone(bones[boneIndex]);
+				var i = 0;
+				while (i < pathBones.length) {
+					var boneCount = pathBones[i++];
+					for (var n = i + boneCount; i < n; i++) {
+						var boneIndex = pathBones[i];
+						this.sortBone(bones[boneIndex]);
+					}
 				}
 			}
 		};
@@ -3726,7 +3769,7 @@ var spine;
 					for (var key in dictionary) {
 						var skinAttachment = dictionary[key];
 						if (slotAttachment == skinAttachment) {
-							var attachment = this.getAttachment(slotIndex, name);
+							var attachment = this.getAttachment(slotIndex, key);
 							if (attachment != null)
 								slot.setAttachment(attachment);
 							break;
@@ -3956,41 +3999,6 @@ var spine;
 		return TextureAtlasRegion;
 	}(spine.TextureRegion));
 	spine.TextureAtlasRegion = TextureAtlasRegion;
-})(spine || (spine = {}));
-var spine;
-(function (spine) {
-	var TextureAtlasAttachmentLoader = (function () {
-		function TextureAtlasAttachmentLoader(atlas) {
-			this.atlas = atlas;
-		}
-		TextureAtlasAttachmentLoader.prototype.newRegionAttachment = function (skin, name, path) {
-			var region = this.atlas.findRegion(path);
-			if (region == null)
-				throw new Error("Region not found in atlas: " + path + " (region attachment: " + name + ")");
-			region.renderObject = region;
-			var attachment = new spine.RegionAttachment(name);
-			attachment.setRegion(region);
-			attachment.region = region;
-			return attachment;
-		};
-		TextureAtlasAttachmentLoader.prototype.newMeshAttachment = function (skin, name, path) {
-			var region = this.atlas.findRegion(path);
-			if (region == null)
-				throw new Error("Region not found in atlas: " + path + " (mesh attachment: " + name + ")");
-			region.renderObject = region;
-			var attachment = new spine.MeshAttachment(name);
-			attachment.region = region;
-			return attachment;
-		};
-		TextureAtlasAttachmentLoader.prototype.newBoundingBoxAttachment = function (skin, name) {
-			return new spine.BoundingBoxAttachment(name);
-		};
-		TextureAtlasAttachmentLoader.prototype.newPathAttachment = function (skin, name) {
-			return new spine.PathAttachment(name);
-		};
-		return TextureAtlasAttachmentLoader;
-	}());
-	spine.TextureAtlasAttachmentLoader = TextureAtlasAttachmentLoader;
 })(spine || (spine = {}));
 var spine;
 (function (spine) {
@@ -4633,6 +4641,7 @@ var spine;
 				vertices[RegionAttachment.U4] = region.u2;
 				vertices[RegionAttachment.V4] = region.v2;
 			}
+			this.region = region;
 		};
 		RegionAttachment.prototype.updateOffset = function () {
 			var regionScaleX = this.width / this.region.originalWidth * this.scaleX;
@@ -4972,8 +4981,6 @@ var spine;
 				if (filter === spine.TextureFilter.Linear)
 					return THREE.LinearFilter;
 				else if (filter === spine.TextureFilter.MipMap)
-					return THREE.LinearMipMapLinearFilter;
-				else if (filter === spine.TextureFilter.MipMapLinearLinear)
 					return THREE.LinearMipMapLinearFilter;
 				else if (filter === spine.TextureFilter.MipMapLinearNearest)
 					return THREE.LinearMipMapNearestFilter;
@@ -7186,7 +7193,7 @@ var spine;
 					var texture = assetManager.get(imagesPath + path);
 					return texture;
 				});
-				var atlasLoader = new spine.TextureAtlasAttachmentLoader(atlas);
+				var atlasLoader = new spine.AtlasAttachmentLoader(atlas);
 				var skeletonJson = new spine.SkeletonJson(atlasLoader);
 				skeletonJson.scale = config.scale;
 				var skeletonData = skeletonJson.readSkeletonData(assetManager.get(config.json));

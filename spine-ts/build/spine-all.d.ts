@@ -323,6 +323,16 @@ declare module spine {
 	}
 }
 declare module spine {
+	class AtlasAttachmentLoader implements AttachmentLoader {
+		atlas: TextureAtlas;
+		constructor(atlas: TextureAtlas);
+		newRegionAttachment(skin: Skin, name: string, path: string): RegionAttachment;
+		newMeshAttachment(skin: Skin, name: string, path: string): MeshAttachment;
+		newBoundingBoxAttachment(skin: Skin, name: string): BoundingBoxAttachment;
+		newPathAttachment(skin: Skin, name: string): PathAttachment;
+	}
+}
+declare module spine {
 	enum BlendMode {
 		Normal = 0,
 		Additive = 1,
@@ -692,16 +702,6 @@ declare module spine {
 	}
 }
 declare module spine {
-	class TextureAtlasAttachmentLoader implements AttachmentLoader {
-		atlas: TextureAtlas;
-		constructor(atlas: TextureAtlas);
-		newRegionAttachment(skin: Skin, name: string, path: string): RegionAttachment;
-		newMeshAttachment(skin: Skin, name: string, path: string): MeshAttachment;
-		newBoundingBoxAttachment(skin: Skin, name: string): BoundingBoxAttachment;
-		newPathAttachment(skin: Skin, name: string): PathAttachment;
-	}
-}
-declare module spine {
 	class TransformConstraint implements Updatable {
 		data: TransformConstraintData;
 		bones: Array<Bone>;
@@ -814,6 +814,10 @@ declare module spine {
 		private frameCount;
 		private frameTime;
 		update(): void;
+	}
+	interface ArrayLike<T> {
+		length: number;
+		[n: number]: T;
 	}
 }
 declare module spine {
