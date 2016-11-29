@@ -1323,17 +1323,15 @@ var spine;
 						next.delay = 0;
 						next.trackTime = nextTime + delta * next.timeScale;
 						current.trackTime += currentDelta;
-						this.setCurrent(i, next);
+						this.setCurrent(i, next, true);
 						while (next.mixingFrom != null) {
 							next.mixTime += currentDelta;
 							next = next.mixingFrom;
 						}
 						continue;
 					}
-					this.updateMixingFrom(current, delta, true);
 				}
 				else {
-					this.updateMixingFrom(current, delta, true);
 					if (current.trackLast >= current.trackEnd && current.mixingFrom == null) {
 						tracks[i] = null;
 						this.queue.end(current);
@@ -1341,30 +1339,25 @@ var spine;
 						continue;
 					}
 				}
+				this.updateMixingFrom(current, delta);
 				current.trackTime += currentDelta;
 			}
 			this.queue.drain();
 		};
-		AnimationState.prototype.updateMixingFrom = function (entry, delta, canEnd) {
+		AnimationState.prototype.updateMixingFrom = function (entry, delta) {
 			var from = entry.mixingFrom;
 			if (from == null)
 				return;
-			if (canEnd && entry.mixTime >= entry.mixDuration && entry.mixTime > 0) {
+			this.updateMixingFrom(from, delta);
+			if (entry.mixTime >= entry.mixDuration && from.mixingFrom != null && entry.mixTime > 0) {
+				entry.mixingFrom = null;
 				this.queue.end(from);
-				var newFrom = from.mixingFrom;
-				entry.mixingFrom = newFrom;
-				if (newFrom == null)
-					return;
-				entry.mixTime = from.mixTime;
-				entry.mixDuration = from.mixDuration;
-				from = newFrom;
+				return;
 			}
 			from.animationLast = from.nextAnimationLast;
 			from.trackLast = from.nextTrackLast;
-			var mixingFromDelta = delta * from.timeScale;
-			from.trackTime += mixingFromDelta;
-			entry.mixTime += mixingFromDelta;
-			this.updateMixingFrom(from, delta, canEnd && from.alpha == 1);
+			from.trackTime += delta * from.timeScale;
+			entry.mixTime += delta * from.timeScale;
 		};
 		AnimationState.prototype.apply = function (skeleton) {
 			if (skeleton == null)
@@ -1380,6 +1373,8 @@ var spine;
 				var mix = current.alpha;
 				if (current.mixingFrom != null)
 					mix *= this.applyMixingFrom(current, skeleton);
+				else if (current.trackTime >= current.trackEnd)
+					mix = 0;
 				var animationLast = current.animationLast, animationTime = current.getAnimationTime();
 				var timelineCount = current.animation.timelines.length;
 				var timelines = current.animation.timelines;
@@ -1567,11 +1562,12 @@ var spine;
 			this.tracks[current.trackIndex] = null;
 			this.queue.drain();
 		};
-		AnimationState.prototype.setCurrent = function (index, current) {
+		AnimationState.prototype.setCurrent = function (index, current, interrupt) {
 			var from = this.expandToIndex(index);
 			this.tracks[index] = current;
 			if (from != null) {
-				this.queue.interrupt(from);
+				if (interrupt)
+					this.queue.interrupt(from);
 				current.mixingFrom = from;
 				current.mixTime = 0;
 				if (from.mixingFrom != null)
@@ -1588,20 +1584,22 @@ var spine;
 		AnimationState.prototype.setAnimationWith = function (trackIndex, animation, loop) {
 			if (animation == null)
 				throw new Error("animation cannot be null.");
+			var interrupt = true;
 			var current = this.expandToIndex(trackIndex);
 			if (current != null) {
 				if (current.nextTrackLast == -1) {
-					this.tracks[trackIndex] = null;
+					this.tracks[trackIndex] = current.mixingFrom;
 					this.queue.interrupt(current);
 					this.queue.end(current);
 					this.disposeNext(current);
-					current = null;
+					current = current.mixingFrom;
+					interrupt = false;
 				}
 				else
 					this.disposeNext(current);
 			}
 			var entry = this.trackEntry(trackIndex, animation, loop, current);
-			this.setCurrent(trackIndex, entry);
+			this.setCurrent(trackIndex, entry, interrupt);
 			this.queue.drain();
 			return entry;
 		};
@@ -1621,7 +1619,7 @@ var spine;
 			}
 			var entry = this.trackEntry(trackIndex, animation, loop, last);
 			if (last == null) {
-				this.setCurrent(trackIndex, entry);
+				this.setCurrent(trackIndex, entry, true);
 				this.queue.drain();
 			}
 			else {
