@@ -172,6 +172,7 @@ public class AnimationState {
 				}
 			}
 			queueEvents(current, animationTime);
+			events.length = 0;
 			current.nextAnimationLast = animationTime;
 			current.nextTrackLast = current.trackTime;
 		}
@@ -217,7 +218,8 @@ public class AnimationState {
 			}
 		}
 
-		queueEvents(from, animationTime);
+		if (entry.mixDuration > 0) queueEvents(from, animationTime);
+		this.events.length = 0;
 		from.nextAnimationLast = animationTime;
 		from.nextTrackLast = from.trackTime;
 
@@ -226,6 +228,9 @@ public class AnimationState {
 	
 	private function applyRotateTimeline (timeline:Timeline, skeleton:Skeleton, time:Number, alpha:Number, setupPose:Boolean,
 		timelinesRotation:Vector.<Number>, i:int, firstFrame:Boolean):void {
+			
+		if (firstFrame) timelinesRotation[i] = 0;
+			
 		if (alpha == 1) {
 			timeline.apply(skeleton, 0, time, null, 1, setupPose, false);
 			return;
@@ -260,11 +265,7 @@ public class AnimationState {
 		var r1:Number = setupPose ? bone.data.rotation : bone.rotation;
 		var total:Number, diff:Number = r2 - r1;
 		if (diff == 0) {
-			if (firstFrame) {
-				timelinesRotation[i] = 0;
-				total = 0;
-			} else
-				total = timelinesRotation[i];
+			total = timelinesRotation[i];
 		} else {
 			diff -= (16384 - int((16384.499999999996 - diff / 360))) * 360;
 			var lastTotal:Number, lastDiff:Number;
@@ -318,16 +319,16 @@ public class AnimationState {
 			event = events[i];
 			if (event.time < animationStart) continue; // Discard events outside animation start/end.
 			queue.event(entry, events[i]);
-		}
-		events.length = 0;
+		}		
 	}
 	
 	public function clearTracks ():void {
+		var oldTrainDisabled:Boolean = queue.drainDisabled;
 		queue.drainDisabled = true;
 		for (var i:int = 0, n:int = tracks.length; i < n; i++)
 			clearTrack(i);
 		tracks.length = 0;
-		queue.drainDisabled = false;
+		queue.drainDisabled = oldTrainDisabled;
 		queue.drain();
 	}
 	
@@ -367,7 +368,7 @@ public class AnimationState {
 			from.timelinesRotation.length = 0;
 
 			// If not completely mixed in, set mixAlpha so mixing out happens from current mix to zero.
-			if (from.mixingFrom != null) current.mixAlpha *= Math.min(from.mixTime / from.mixDuration, 1);
+			if (from.mixingFrom != null && from.mixDuration > 0) current.mixAlpha *= Math.min(from.mixTime / from.mixDuration, 1);
 		}
 
 		queue.start(current);
@@ -452,12 +453,13 @@ public class AnimationState {
 	}
 	
 	public function setEmptyAnimations (mixDuration:Number):void {
+		var oldDrainDisabled:Boolean = queue.drainDisabled;
 		queue.drainDisabled = true;
 		for (var i:int = 0, n:int = tracks.length; i < n; i++) {
 			var current:TrackEntry = tracks[i];
 			if (current != null) setEmptyAnimation(current.trackIndex, mixDuration);
 		}
-		queue.drainDisabled = false;
+		queue.drainDisabled = oldDrainDisabled;
 		queue.drain();
 	}
 	
@@ -486,7 +488,7 @@ public class AnimationState {
 		entry.trackTime = 0;
 		entry.trackLast = -1;
 		entry.nextTrackLast = -1;
-		entry.trackEnd = loop ? int.MAX_VALUE : entry.animationEnd;
+		entry.trackEnd = int.MAX_VALUE;
 		entry.timeScale = 1;
 
 		entry.alpha = 1;

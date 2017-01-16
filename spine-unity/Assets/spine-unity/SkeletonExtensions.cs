@@ -114,8 +114,16 @@ namespace Spine.Unity {
 			return new Vector2(bone.x, bone.y);
 		}
 
+		/// <summary>Gets the position of the bone in Skeleton-space.</summary>
 		public static Vector2 GetSkeletonSpacePosition (this Bone bone) {
 			return new Vector2(bone.worldX, bone.worldY);
+		}
+
+		/// <summary>Gets a local offset from the bone and converts it into Skeleton-space.</summary>
+		public static Vector2 GetSkeletonSpacePosition (this Bone bone, Vector2 boneLocal) {
+			Vector2 o;
+			bone.LocalToWorld(boneLocal.x, boneLocal.y, out o.x, out o.y);
+			return o;
 		}
 
 		public static Vector3 GetWorldPosition (this Bone bone, UnityEngine.Transform parentTransform) {		
@@ -130,6 +138,7 @@ namespace Spine.Unity {
 			};
 		}
 
+		/// <summary>Outputs a 2x2 Transformation Matrix that can convert a skeleton-space position to a bone-local position.</summary>
 		public static void GetWorldToLocalMatrix (this Bone bone, out float ia, out float ib, out float ic, out float id) {
 			float a = bone.a, b = bone.b, c = bone.c, d = bone.d;
 			float invDet = 1 / (a * d - b * c);
@@ -138,19 +147,34 @@ namespace Spine.Unity {
 			ic = invDet * -c;
 			id = invDet * a;
 		}
+
+		/// <summary>UnityEngine.Vector2 override of Bone.WorldToLocal. This converts a skeleton-space position into a bone local position.</summary>
+		public static Vector2 WorldToLocal (this Bone bone, Vector2 worldPosition) {
+			Vector2 o;
+			bone.WorldToLocal(worldPosition.x, worldPosition.y, out o.x, out o.y);
+			return o;
+		}
 		#endregion
 
 		#region Attachments
 		public static Material GetMaterial (this Attachment a) {
+			object rendererObject = null;
 			var regionAttachment = a as RegionAttachment;
 			if (regionAttachment != null)
-				return (Material)((AtlasRegion)regionAttachment.RendererObject).page.rendererObject;
+				rendererObject = regionAttachment.RendererObject;
 
 			var meshAttachment = a as MeshAttachment;
 			if (meshAttachment != null)
-				return (Material)((AtlasRegion)meshAttachment.RendererObject).page.rendererObject;			
+				rendererObject = meshAttachment.RendererObject;
 
-			return null;
+			if (rendererObject == null)
+				return null;
+			
+			#if SPINE_TK2D
+			return (rendererObject.GetType() == typeof(Material)) ? (Material)rendererObject : (Material)((AtlasRegion)rendererObject).page.rendererObject;
+			#else
+			return (Material)((AtlasRegion)rendererObject).page.rendererObject;
+			#endif
 		}
 
 		/// <summary>Fills a Vector2 buffer with local vertices.</summary>

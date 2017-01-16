@@ -30,9 +30,6 @@
 
 // Contributed by: Mitch Thompson
 
-using System;
-using System.IO;
-using System.Collections.Generic;
 using UnityEngine;
 using Spine;
 
@@ -117,11 +114,14 @@ namespace Spine.Unity {
 
 			float skeletonFlipRotation = (skeleton.flipX ^ skeleton.flipY) ? -1f : 1f;
 			if (mode == Mode.Follow) {
+				if (!bone.appliedValid)
+					bone.UpdateAppliedTransform();			
+
 				if (position)
-					cachedTransform.localPosition = new Vector3(bone.x, bone.y, 0);
+					cachedTransform.localPosition = new Vector3(bone.ax, bone.ay, 0);
 				
 				if (rotation) {
-					if (!bone.data.transformMode.InheritsRotation()) {
+					if (bone.data.transformMode.InheritsRotation()) {
 						cachedTransform.localRotation = Quaternion.Euler(0, 0, bone.AppliedRotation);
 					} else {
 						Vector3 euler = skeletonTransform.rotation.eulerAngles;
@@ -130,7 +130,7 @@ namespace Spine.Unity {
 				}
 
 				if (scale) {
-					cachedTransform.localScale = new Vector3(bone.scaleX, bone.scaleY, 1f);
+					cachedTransform.localScale = new Vector3(bone.ascaleX, bone.ascaleY, 1f);
 					incompatibleTransformMode = BoneTransformModeIncompatible(bone);
 				}
 			} else if (mode == Mode.Override) {

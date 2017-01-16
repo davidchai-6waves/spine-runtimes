@@ -1398,6 +1398,7 @@ var spine;
 					}
 				}
 				this.queueEvents(current, animationTime);
+				events.length = 0;
 				current.nextAnimationLast = animationTime;
 				current.nextTrackLast = current.trackTime;
 			}
@@ -1441,12 +1442,16 @@ var spine;
 					timeline.apply(skeleton, animationLast, animationTime, events, alpha, setupPose, true);
 				}
 			}
-			this.queueEvents(from, animationTime);
+			if (entry.mixDuration > 0)
+				this.queueEvents(from, animationTime);
+			this.events.length = 0;
 			from.nextAnimationLast = animationTime;
 			from.nextTrackLast = from.trackTime;
 			return mix;
 		};
 		AnimationState.prototype.applyRotateTimeline = function (timeline, skeleton, time, alpha, setupPose, timelinesRotation, i, firstFrame) {
+			if (firstFrame)
+				timelinesRotation[i] = 0;
 			if (alpha == 1) {
 				timeline.apply(skeleton, 0, time, null, 1, setupPose, false);
 				return;
@@ -1475,12 +1480,7 @@ var spine;
 			var r1 = setupPose ? bone.data.rotation : bone.rotation;
 			var total = 0, diff = r2 - r1;
 			if (diff == 0) {
-				if (firstFrame) {
-					timelinesRotation[i] = 0;
-					total = 0;
-				}
-				else
-					total = timelinesRotation[i];
+				total = timelinesRotation[i];
 			}
 			else {
 				diff -= (16384 - ((16384.499999999996 - diff / 360) | 0)) * 360;
@@ -1532,14 +1532,14 @@ var spine;
 					continue;
 				this.queue.event(entry, events[i]);
 			}
-			this.events.length = 0;
 		};
 		AnimationState.prototype.clearTracks = function () {
+			var oldDrainDisabled = this.queue.drainDisabled;
 			this.queue.drainDisabled = true;
 			for (var i = 0, n = this.tracks.length; i < n; i++)
 				this.clearTrack(i);
 			this.tracks.length = 0;
-			this.queue.drainDisabled = false;
+			this.queue.drainDisabled = oldDrainDisabled;
 			this.queue.drain();
 		};
 		AnimationState.prototype.clearTrack = function (trackIndex) {
@@ -1570,7 +1570,8 @@ var spine;
 					this.queue.interrupt(from);
 				current.mixingFrom = from;
 				current.mixTime = 0;
-				if (from.mixingFrom != null)
+				from.timelinesRotation.length = 0;
+				if (from.mixingFrom != null && from.mixDuration > 0)
 					current.mixAlpha *= Math.min(from.mixTime / from.mixDuration, 1);
 			}
 			this.queue.start(current);
@@ -1650,13 +1651,14 @@ var spine;
 			return entry;
 		};
 		AnimationState.prototype.setEmptyAnimations = function (mixDuration) {
+			var oldDrainDisabled = this.queue.drainDisabled;
 			this.queue.drainDisabled = true;
 			for (var i = 0, n = this.tracks.length; i < n; i++) {
 				var current = this.tracks[i];
 				if (current != null)
 					this.setEmptyAnimation(current.trackIndex, mixDuration);
 			}
-			this.queue.drainDisabled = false;
+			this.queue.drainDisabled = oldDrainDisabled;
 			this.queue.drain();
 		};
 		AnimationState.prototype.expandToIndex = function (index) {
@@ -1682,7 +1684,7 @@ var spine;
 			entry.trackTime = 0;
 			entry.trackLast = -1;
 			entry.nextTrackLast = -1;
-			entry.trackEnd = loop ? Number.MAX_VALUE : entry.animationEnd;
+			entry.trackEnd = Number.MAX_VALUE;
 			entry.timeScale = 1;
 			entry.alpha = 1;
 			entry.mixAlpha = 1;
@@ -2232,6 +2234,7 @@ var spine;
 				this.regionUVs = parentMesh.regionUVs;
 				this.triangles = parentMesh.triangles;
 				this.hullLength = parentMesh.hullLength;
+				this.worldVerticesLength = parentMesh.worldVerticesLength;
 			}
 		};
 		return MeshAttachment;
@@ -3554,6 +3557,7 @@ var spine;
 		Skeleton.prototype.updateCache = function () {
 			var updateCache = this._updateCache;
 			updateCache.length = 0;
+			this.updateCacheReset.length = 0;
 			var bones = this.bones;
 			for (var i = 0, n = bones.length; i < n; i++)
 				bones[i].sorted = false;
@@ -7901,7 +7905,14 @@ var spine;
 			var assets = this.assetManager = new spine.webgl.AssetManager(gl);
 			assets.loadText(config.atlas);
 			assets.loadText(config.json);
-			assets.loadTexture(config.atlas.replace(".atlas", ".png"));
+			if (config.atlasPages == null) {
+				assets.loadTexture(config.atlas.replace(".atlas", ".png"));
+			}
+			else {
+				for (var i = 0; i < config.atlasPages.length; i++) {
+					assets.loadTexture(config.atlasPages[i]);
+				}
+			}
 			requestAnimationFrame(function () { _this.load(); });
 		}
 		SpineWidget.prototype.validateConfig = function (config) {
@@ -8084,6 +8095,8 @@ var spine;
 			config.animation = widget.getAttribute("data-animation");
 			if (widget.getAttribute("data-images-path"))
 				config.imagesPath = widget.getAttribute("data-images-path");
+			if (widget.getAttribute("data-atlas-pages"))
+				config.atlasPages = widget.getAttribute("data-atlas-pages").split(",");
 			if (widget.getAttribute("data-skin"))
 				config.skin = widget.getAttribute("data-skin");
 			if (widget.getAttribute("data-loop"))

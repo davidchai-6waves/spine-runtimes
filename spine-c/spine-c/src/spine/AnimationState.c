@@ -142,7 +142,7 @@ void _spEventQueue_drain (_spEventQueue* self) {
 	if (self->drainDisabled) return;
 	self->drainDisabled = 1;
 	for (i = 0; i < self->objectsCount; i += 2) {
-		spEventType type = self->objects[i].type;
+		spEventType type = (spEventType)self->objects[i].type;
 		spTrackEntry* entry = self->objects[i+1].entry;
 		spEvent* event;
 		switch (type) {
@@ -351,6 +351,7 @@ void spAnimationState_apply (spAnimationState* self, spSkeleton* skeleton) {
 			}
 		}
 		_spAnimationState_queueEvents(self, current, animationTime);
+		internal->eventsCount = 0;
 		current->nextAnimationLast = animationTime;
 		current->nextTrackLast = current->trackTime;
 	}
@@ -414,7 +415,8 @@ float _spAnimationState_applyMixingFrom (spAnimationState* self, spTrackEntry* e
 		}
 	}
 
-	_spAnimationState_queueEvents(self, from, animationTime);
+	if (entry->mixDuration > 0) _spAnimationState_queueEvents(self, from, animationTime);
+	internal->eventsCount = 0;
 	from->nextAnimationLast = animationTime;
 	from->nextTrackLast = from->trackTime;
 
@@ -432,6 +434,8 @@ void _spAnimationState_applyRotateTimeline (spAnimationState* self, spTimeline* 
 	float percent;
 	float total, diff;
 	int /*boolean*/ current, dir;
+
+	if (firstFrame) timelinesRotation[i] = 0;
 
 	if (alpha == 1) {
 		spTimeline_apply(timeline, skeleton, 0, time, 0, 0, 1, setupPose, 0);
@@ -468,11 +472,7 @@ void _spAnimationState_applyRotateTimeline (spAnimationState* self, spTimeline* 
 	r1 = setupPose ? bone->data->rotation : bone->rotation;
 	diff = r2 - r1;
 	if (diff == 0) {
-		if (firstFrame) {
-			timelinesRotation[i] = 0;
-			total = 0;
-		} else
-			total = timelinesRotation[i];
+		total = timelinesRotation[i];
 	} else {
 		float lastTotal, lastDiff;
 		diff -= (16384 - (int)(16384.499999999996 - diff / 360)) * 360;
@@ -530,17 +530,17 @@ void _spAnimationState_queueEvents (spAnimationState* self, spTrackEntry* entry,
 		if (event->time < animationStart) continue; /* Discard events outside animation start/end. */
 		_spEventQueue_event(internal->queue, entry, event);
 	}
-	internal->eventsCount = 0;
 }
 
 void spAnimationState_clearTracks (spAnimationState* self) {
 	_spAnimationState* internal = SUB_CAST(_spAnimationState, self);
-	int i, n;
+	int i, n, oldDrainDisabled;
+	oldDrainDisabled = internal->queue->drainDisabled;
 	internal->queue->drainDisabled = 1;
 	for (i = 0, n = self->tracksCount; i < n; i++)
 		spAnimationState_clearTrack(self, i);
 	self->tracksCount = 0;
-	internal->queue->drainDisabled = 0;
+	internal->queue->drainDisabled = oldDrainDisabled;
 	_spEventQueue_drain(internal->queue);
 }
 
@@ -581,8 +581,10 @@ void _spAnimationState_setCurrent (spAnimationState* self, int index, spTrackEnt
 		current->mixingFrom = from;
 		current->mixTime = 0;
 
+		from->timelinesRotationCount = 0;
+
 		/* If not completely mixed in, set mixAlpha so mixing out happens from current mix to zero. */
-		if (from->mixingFrom) current->mixAlpha *= MIN(from->mixTime / from->mixDuration, 1);
+		if (from->mixingFrom && from->mixDuration > 0) current->mixAlpha *= MIN(from->mixTime / from->mixDuration, 1);
 	}
 
 	_spEventQueue_start(internal->queue, current);
@@ -673,15 +675,16 @@ spTrackEntry* spAnimationState_addEmptyAnimation(spAnimationState* self, int tra
 }
 
 void spAnimationState_setEmptyAnimations(spAnimationState* self, float mixDuration) {
-	int i, n;
+	int i, n, oldDrainDisabled;
 	spTrackEntry* current;
 	_spAnimationState* internal = SUB_CAST(_spAnimationState, self);
+	oldDrainDisabled = internal->queue->drainDisabled;
 	internal->queue->drainDisabled = 1;
 	for (i = 0, n = self->tracksCount; i < n; i++) {
 		current = self->tracks[i];
 		if (current) spAnimationState_setEmptyAnimation(self, current->trackIndex, mixDuration);
 	}
-	internal->queue->drainDisabled = 0;
+	internal->queue->drainDisabled = oldDrainDisabled;
 	_spEventQueue_drain(internal->queue);
 }
 
@@ -715,7 +718,7 @@ spTrackEntry* _spAnimationState_trackEntry (spAnimationState* self, int trackInd
 	entry->trackTime = 0;
 	entry->trackLast = -1;
 	entry->nextTrackLast = -1;
-	entry->trackEnd = loop ? (float)INT_MAX : entry->animationEnd;
+	entry->trackEnd = (float)INT_MAX;
 	entry->timeScale = 1;
 
 	entry->alpha = 1;

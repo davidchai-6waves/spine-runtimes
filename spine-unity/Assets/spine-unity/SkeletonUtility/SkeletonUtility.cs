@@ -110,12 +110,13 @@ namespace Spine.Unity {
 		public Transform boneRoot;
 
 		void Update () {
-			if (boneRoot != null && skeletonRenderer.skeleton != null) {
+			var skeleton = skeletonRenderer.skeleton;
+			if (boneRoot != null && skeleton != null) {
 				Vector3 flipScale = Vector3.one;
-				if (skeletonRenderer.skeleton.FlipX)
+				if (skeleton.FlipX)
 					flipScale.x = -1;
 
-				if (skeletonRenderer.skeleton.FlipY)
+				if (skeleton.FlipY)
 					flipScale.y = -1;
 
 				boneRoot.localScale = flipScale;
@@ -193,7 +194,6 @@ namespace Spine.Unity {
 		}
 
 		public void RegisterConstraint (SkeletonUtilityConstraint constraint) {
-
 			if (utilityConstraints.Contains(constraint))
 				return;
 			else {
@@ -223,7 +223,7 @@ namespace Spine.Unity {
 				var utilityBones = this.utilityBones;
 				for (int i = 0, n = utilityBones.Count; i < n; i++) {
 					var b = utilityBones[i];
-					if (b.bone == null) return;
+					if (b.bone == null) continue;
 					hasTransformBones |= (b.mode == SkeletonUtilityBone.Mode.Override);
 					hasUtilityConstraints |= constraintTargets.Contains(b.bone);
 				}
